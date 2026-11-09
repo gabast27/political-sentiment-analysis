@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+splits/*.csv
+results/**/predictions_*.csv
+results/**/model/
+# SÍ se versionan: splits/split_report.json, results/**/metrics_*.json, run_info.json,
+# history.json y results/comparison/*

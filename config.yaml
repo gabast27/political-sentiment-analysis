@@ -1,0 +1,108 @@
+# Configuración de los experimentos. Cámbiala SOLO con un commit de git antes de ejecutar.
+
+device: auto                    # auto | cuda | cpu
+results_dir: results
+
+data:
+  path: data/dataset_etiquetado.csv
+  id_col: id
+  text_col: text
+  label_col: label
+  group_col: null               # p. ej. video_id: si existe, la partición es por grupo (recomendado)
+  # Traduce TUS etiquetas a NEG / NEU / POS (se ignoran mayúsculas). Si tu dataset es binario,
+  # basta con NEG y POS: los modelos con clase neutra la ignorarán.
+  label_map:
+    negativo: NEG
+    neutral: NEU
+    neutro: NEU
+    positivo: POS
+    # "0": NEG      # si usas números, descomenta y ajusta según tu codificación
+    # "1": NEU
+    # "2": POS
+
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+  seed: 42
+  out_dir: splits
+
+inference:                      # experimento SIN entrenar
+  batch_size: 64
+  max_length: 128               # tokens; los comentarios más largos se truncan
+  precision: auto               # auto | fp32 | fp16 | bf16
+
+train:                          # experimento CON fine-tuning
+  seeds: [42, 43, 44]           # 3 semillas: se reporta media ± desviación
+  epochs: 4
+  batch_size: 32
+  eval_batch_size: 128
+  grad_accum_steps: 1
+  lr: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  max_length: 128
+  patience: 2                   # parada temprana sobre macro-F1 de validación
+  class_weights: none           # none | balanced (útil si hay mucho desbalance)
+  precision: auto
+  save_model: false             # true guarda el mejor modelo de cada ejecución (~0.5 GB c/u)
+
+bootstrap:
+  n_boot: 1000
+  seed: 0
+
+# Preprocesado por modelo. Tu dataset trae <URL> y <USUARIO> (pipeline de limpieza anterior):
+# cada familia de modelos espera sus propios marcadores.
+# Verifica que los modelos sigan disponibles en huggingface.co antes de lanzar.
+models:
+  # --- Modelos con cabeza de sentimiento: sin entrenar Y con fine-tuning ---
+  - name: robertuito_sentiment
+    hf_id: pysentimiento/robertuito-sentiment-analysis
+    zero_shot: true
+    preprocess:
+      method: pysentimiento     # requiere: pip install pysentimiento --no-deps
+      replacements: {"<URL>": "url", "<USUARIO>": "@usuario", "<EMAIL>": "url", "<TELEFONO>": ""}
+
+  - name: xlmt_sentiment
+    hf_id: cardiffnlp/twitter-xlm-roberta-base-sentiment
+    zero_shot: true
+    preprocess:
+      method: xlmt
+      replacements: {"<URL>": "http", "<USUARIO>": "@user", "<EMAIL>": "http", "<TELEFONO>": ""}
+
+  # Aviso: su autor indica que BETO-sentiment "se eliminará pronto"; si ya no existe, quítalo.
+  - name: beto_sentiment
+    hf_id: finiteautomata/beto-sentiment-analysis
+    zero_shot: true
+    preprocess:
+      method: pysentimiento
+      replacements: {"<URL>": "url", "<USUARIO>": "@usuario", "<EMAIL>": "url", "<TELEFONO>": ""}
+
+  # Ejemplo de modelo con etiquetas de 1 a 5 estrellas (se agrupan en NEG/NEU/POS):
+  # - name: nlptown_stars
+  #   hf_id: nlptown/bert-base-multilingual-uncased-sentiment
+  #   zero_shot: true
+  #   label_map: {"1 star": NEG, "2 stars": NEG, "3 stars": NEU, "4 stars": POS, "5 stars": POS}
+
+  # --- Modelos base (sin cabeza de sentimiento): SOLO fine-tuning ---
+  - name: beto_base
+    hf_id: dccuchile/bert-base-spanish-wwm-cased
+    zero_shot: false
+    preprocess: {method: none, replacements: {}}
+
+  - name: roberta_bne
+    hf_id: PlanTL-GOB-ES/roberta-base-bne
+    zero_shot: false
+    preprocess: {method: none, replacements: {}}
+
+  - name: robertuito_base
+    hf_id: pysentimiento/robertuito-base-uncased
+    zero_shot: false
+    preprocess:
+      method: pysentimiento
+      replacements: {"<URL>": "url", "<USUARIO>": "@usuario", "<EMAIL>": "url", "<TELEFONO>": ""}
+
+  - name: xlmr_base
+    hf_id: FacebookAI/xlm-roberta-base
+    zero_shot: false
+    preprocess: {method: none, replacements: {}}

@@ -1,0 +1,11 @@
+torch>=2.2
+transformers>=4.40
+scikit-learn>=1.3
+pandas>=2.0
+numpy>=1.24
+PyYAML>=6.0
+matplotlib>=3.7
+emoji>=2.8              # lo usa el preprocesado de pysentimiento
+pytest>=7.4
+# Opcional, para method: pysentimiento (instalar SIN dependencias):
+#   pip install pysentimiento --no-deps
